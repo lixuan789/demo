@@ -2,11 +2,8 @@ package com.example.demo.crypto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -843,12 +840,12 @@ public class SM2 {
 		 SM2KeyPair keyPair = sm02.generateKeyPair();
 		 ECPoint publicKey1=keyPair.getPublicKey();
 		 BigInteger privateKey1=keyPair.getPrivateKey();
-		 sm02.exportPublicKey(publicKey1, "mypub.txt");
-		 sm02.exportPrivateKey(privateKey1, "mypri.txt");
+		 sm02.exportPublicKey(publicKey1, "static/mypub.txt");
+		 sm02.exportPrivateKey(privateKey1, "static/mypri.txt");
 
 		System.out.println("-----------------公钥加密与解密-----------------");
-		ECPoint publicKey = sm02.importPublicKey("mypub.txt");
-		BigInteger privateKey = sm02.importPrivateKey("mypri.txt");
+		ECPoint publicKey = sm02.importPublicKey("static/mypub.txt");
+		BigInteger privateKey = sm02.importPrivateKey("static/mypri.txt");
 		byte[] data = sm02.encrypt("测试加密aaaaaaaaaaa123aabb", publicKey);
 		System.out.print("密文:");
 		SM2.printHexString(data);

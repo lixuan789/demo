@@ -4,8 +4,11 @@ package com.example.demo.bean;
 import com.example.demo.crypto.SM2;
 import com.example.demo.crypto.SM2KeyPair;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
 import org.bouncycastle.math.ec.ECPoint;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.*;
 import java.math.BigInteger;
 import java.util.Date;
 
@@ -42,16 +45,41 @@ public class Transaction {
 
     private void init() {
         SM2 sm2 = new SM2();
-        String mypub = this.getClass().getClassLoader().getResource("mypub.txt").getPath();//获取文件路径
-        String mypri = this.getClass().getClassLoader().getResource("mypri.txt").getPath();//获取文件路径
-        ECPoint publicKey = sm2.importPublicKey(mypub.substring(1));
-        BigInteger privateKey = sm2.importPrivateKey(mypri.substring(1));
-        byte buffer[] = publicKey.getEncoded(true);
-        String strPublicKey = Base64.encodeBase64String(buffer);
-        this.senderPublicKey=strPublicKey;
+        ClassPathResource resourcePub = new ClassPathResource("static/mypub.txt");
+        ClassPathResource resourcePri = new ClassPathResource("static/mypri.txt");
+        try {
+            //读取公钥
+            InputStream insPub = resourcePub.getInputStream();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			byte buffer[] = new byte[16];
+			int size;
+			while ((size = insPub.read(buffer)) != -1) {
+				baos.write(buffer, 0, size);
+			}
+            insPub.close();
+            byte[] bytes = Base64.decodeBase64(baos.toByteArray());
+            ECPoint publicKey = SM2.getCurve().decodePoint(bytes);
+
+            //读取私钥
+            InputStream insPri = resourcePri.getInputStream();
+            ByteArrayOutputStream baos1 = new ByteArrayOutputStream();
+            byte buffer1[] = new byte[16];
+            int size1;
+            while ((size1 = insPri.read(buffer1)) != -1) {
+                baos1.write(buffer1, 0, size1);
+            }
+            insPri.close();
+            BigInteger privateKey = Base64.decodeInteger(baos1.toByteArray());
+
+            String strPublicKey = Base64.encodeBase64String(publicKey.getEncoded(true));
+            System.out.println(strPublicKey);
+            this.senderPublicKey=strPublicKey;
 //        this.encode=SM2.getHexString(sm2.encrypt(content,publicKey));
-        this.signaturedData=sm2.sign(content, "Heartbeats", new SM2KeyPair(publicKey, privateKey)).toString();
-        this.timeStamp=new Date().getTime();
+            this.signaturedData=sm2.sign(content, "Heartbeats", new SM2KeyPair(publicKey, privateKey)).toString();
+            this.timeStamp=new Date().getTime();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public long getTimeStamp() {
@@ -109,13 +137,37 @@ public class Transaction {
     // 校验交易的方法，非对称加密
     public boolean verify() {
         SM2 sm2 = new SM2();
-        String mypub = this.getClass().getClassLoader().getResource("mypub.txt").getPath();//获取文件路径
-        String mypri = this.getClass().getClassLoader().getResource("mypri.txt").getPath();//获取文件路径
-        ECPoint publicKey = sm2.importPublicKey(mypub.substring(1));
-        BigInteger privateKey = sm2.importPrivateKey(mypri.substring(1));
-        String IDA = "Heartbeats";
-        SM2.Signature signature = sm2.sign(content, IDA, new SM2KeyPair(publicKey, privateKey));
-        return sm2.verify(content, signature, IDA, publicKey);
+        ClassPathResource resourcePub = new ClassPathResource("static/mypub.txt");
+        ClassPathResource resourcePri = new ClassPathResource("static/mypri.txt");
+        try {
+            //读取公钥
+            InputStream insPub = resourcePub.getInputStream();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte buffer[] = new byte[16];
+            int size;
+            while ((size = insPub.read(buffer)) != -1) {
+                baos.write(buffer, 0, size);
+            }
+            insPub.close();
+            byte[] bytes = Base64.decodeBase64(baos.toByteArray());
+            ECPoint publicKey = SM2.getCurve().decodePoint(bytes);
+
+            //读取私钥
+            InputStream insPri = resourcePri.getInputStream();
+            ByteArrayOutputStream baos1 = new ByteArrayOutputStream();
+            byte buffer1[] = new byte[16];
+            int size1;
+            while ((size1 = insPri.read(buffer1)) != -1) {
+                baos1.write(buffer1, 0, size1);
+            }
+            insPri.close();
+            BigInteger privateKey = Base64.decodeInteger(baos1.toByteArray());
+            String IDA = "Heartbeats";
+            SM2.Signature signature = sm2.sign(content, IDA, new SM2KeyPair(publicKey, privateKey));
+            return sm2.verify(content, signature, IDA, publicKey);
+        }catch (Exception e){
+            return false;
+        }
 //        PublicKey publicKey = RSAUtils.getPublicKeyFromString("RSA", senderPublicKey);
 //        return RSAUtils.verifyDataJS("SHA256withRSA", publicKey, content, signaturedData);
     }
