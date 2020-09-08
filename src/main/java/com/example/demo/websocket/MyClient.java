@@ -55,6 +55,7 @@ public class MyClient extends WebSocketClient {
         String ip=split[0];
         String port=split[1];
         nodeMapper.updateState(ip,port,1);
+        nodeMapper.updateCommit(ip,port,0);
         System.out.println("客户端__" + name + "__打开了连接");
         this.send("客户端成功创建客户端");
     }
@@ -103,10 +104,12 @@ public class MyClient extends WebSocketClient {
                         System.out.println("客户端收到服务端错误的JSON化数据");
                         return;
                     }
+                    //校验成功，进入commit状态
                     String[] split = name.split(":");
                     String ip=split[0];
                     String port=split[1];
                     nodeMapper.updateCommit(ip,port,1);//设置为确认状态
+
                     if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
                         this.send("客户端开始区块入库啦");
                     }
@@ -149,6 +152,7 @@ public class MyClient extends WebSocketClient {
         String ip=split[0];
         String port=split[1];
         nodeMapper.updateState(ip,port,0);
+        nodeMapper.updateCommit(ip,port,0);
         System.out.println("客户端__" +name + "__关闭了连接");
     }
 

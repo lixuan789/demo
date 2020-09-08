@@ -61,30 +61,7 @@ public class BlockController {
         String ip = WebUtils.getHostIp();
         String hostName = WebUtils.getHostName();
 
-        //2.已存在则不插入，进行更新
-        List<Node> result = nodeMapper.getByIpAndPort(ip, serverport);
-        if (result != null && result.size() > 0) {
-            if (result.get(0).getState()==0){
-                //已经存在，并且状态为0，状态更新为1
-                System.out.println("节点状态更新为1");
-                nodeMapper.updateState(ip, serverport, 1);
-            }
-            if (result.get(0).getCommit()==0){
-                nodeMapper.updateCommit(ip,serverport,1);
-            }
-            return;
-        }
-
-        //3.插入新节点
-        Node node = new Node();
-        node.setIp(ip);
-        node.setPort(serverport);
-        node.setState(1);//为在线状态
-        node.setHostName(hostName);
-        node.setCommit(0);
-        nodeMapper.insertNode(node);
-
-        //4.与其他节点进行连接
+        //2.连接其他节点
         String curUrl=ip+":"+serverport;
         List<Node> all = nodeMapper.getAll();
         for (Node n : all) {
@@ -98,6 +75,31 @@ public class BlockController {
             client.connect();
             clients.add(client);
         }
+
+        //3.已存在则不插入，进行更新
+        List<Node> result = nodeMapper.getByIpAndPort(ip, serverport);
+        if (result != null && result.size() > 0) {
+            if (result.get(0).getState()==0){
+                //已经存在，并且状态为0，状态更新为1
+                System.out.println("节点状态更新为1");
+                nodeMapper.updateState(ip, serverport, 1);
+            }
+            if (result.get(0).getCommit()==0){
+                //已经存在，并且状态为0，状态更新为1
+                System.out.println("commit状态更新为1");
+                nodeMapper.updateCommit(ip, serverport, 1);
+            }
+            return;
+        }
+
+        //3.插入新节点
+        Node node = new Node();
+        node.setIp(ip);
+        node.setPort(serverport);
+        node.setState(1);//为在线状态
+        node.setHostName(hostName);
+        node.setCommit(0);
+        nodeMapper.insertNode(node);
 
 
     }
@@ -182,7 +184,7 @@ public class BlockController {
     //PBFT消息节点最少确认个数计算
     private double getConnecttedNodeCount() {
         List<Node> list=nodeMapper.getCommitNode();
-        return list.size()+1;//加上自己
+        return list.size();
     }
 
     // 展示记录
