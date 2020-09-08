@@ -126,27 +126,14 @@ public class BlockController {
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
     public String addNote(String content, HttpSession session) {
         //先进行共识
-        for (MyClient client : clients) {
-            //括号里是client没有初试过，用别的方法判断也可以，反正一定要判断到 client没有初始化过。
-            try {
-                if (!client.isOpen()) {
-                    if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
-                        client.connect();
-                    } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
-                        client.reconnect();
-                    }
-                }
-                client.send("请求达成共识");
-            }catch (RuntimeException e){
-                return "共识失败"+e.getMessage();
-            }
-        }
+        server.broadcast("请求达成共识");
 
         String userName = (String) session.getAttribute("loginUser");
 //        String hostName=WebUtils.getHostName();
         Transaction transaction = new Transaction(content,userName);
         try {
             if (content.matches(".*(中汽数据).*")){
+
                 if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
                     if (transaction.verify()){
                         ObjectMapper objectMapper = new ObjectMapper();

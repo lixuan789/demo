@@ -54,9 +54,12 @@ public class MyClient extends WebSocketClient {
         String[] split = name.split(":");
         String ip=split[0];
         String port=split[1];
-        nodeMapper.updateState(ip,port,1);
-        nodeMapper.updateCommit(ip,port,0);
         System.out.println("客户端__" + name + "__打开了连接");
+
+        System.out.println("在线状态置为1");
+        nodeMapper.updateState(ip,port,1);
+        System.out.println("commit状态置为0");
+        nodeMapper.updateCommit(ip,port,0);
         this.send("客户端成功创建客户端");
     }
 
@@ -64,6 +67,10 @@ public class MyClient extends WebSocketClient {
     public void onMessage(String message) {
         System.out.println("客户端__" + name + "__收到了消息:"+message);
         try {
+            if ("请求达成共识".equals(message)){
+                this.send("客户端成功创建客户端");
+                return;
+            }
             //如果收到的不是JSON化数据，则说明不是PBFT阶段
             if (!message.startsWith("{")){
                 return;
@@ -108,8 +115,9 @@ public class MyClient extends WebSocketClient {
                     String[] split = name.split(":");
                     String ip=split[0];
                     String port=split[1];
-                    nodeMapper.updateCommit(ip,port,1);//设置为确认状态
 
+                    System.out.println("commit状态置为1");
+                    nodeMapper.updateCommit(ip,port,1);//设置为确认状态
                     if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
                         this.send("客户端开始区块入库啦");
                     }
@@ -143,7 +151,7 @@ public class MyClient extends WebSocketClient {
     //PBFT消息节点最少确认个数计算
     private double getConnecttedNodeCount() {
         List<Node> list=nodeMapper.getCommitNode();
-        return list.size()+1;//加上自己
+        return list.size();
     }
 
     @Override
