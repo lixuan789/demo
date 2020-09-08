@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.demo.mapper.NodeMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.demo.bean.Node">
+        <result column="id" jdbcType="INTEGER" property="id" />
+        <result column="ip" jdbcType="VARCHAR" property="ip" />
+        <result column="port" jdbcType="VARCHAR" property="port" />
+    </resultMap>
+    <update id="updateState">
+        update node set state=#{state} where ip=#{ip} and port=#{port}
+    </update>
+    <update id="updateCommit">
+        update node set commit=#{commit} where ip=#{ip} and port=#{port}
+    </update>
+
+    <select id="getAll" resultMap="BaseResultMap">
+        select * from node
+    </select>
+
+    <insert id="insertNode" parameterType="com.example.demo.bean.Node">
+        insert into node (ip,port,state,hostName,commit) values (#{ip},#{port},#{state},#{hostName},#{commit})
+    </insert>
+
+    <select id="getByIpAndPort" resultMap="BaseResultMap">
+        select * from node where ip=#{ip} and port=#{port}
+    </select>
+    <select id="getOnlineNode" resultType="com.example.demo.bean.Node">
+        select * from node where state=1
+    </select>
+    <select id="getCommitNode" resultType="com.example.demo.bean.Node">
+        select * from node where commit=1
+    </select>
+
+</mapper>

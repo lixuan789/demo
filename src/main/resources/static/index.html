@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
+    <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+    <style>
+
+        body {
+            margin: 30px;
+        }
+
+        #idInput {
+            width: 100px;
+        }
+
+        #result {
+            padding: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+<!--输入框-->
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <span class="input-group-text" id="inputGroup-sizing-default">请输入内容:</span>
+    </div>
+    <input id="idInput" type="text" class="form-control" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-default">
+</div>
+<!--按钮组-->
+<div style="margin-bottom: 15px">
+    <button type="button" class="btn btn-outline-primary" onclick="addGenesis()">添加封面</button>
+    <button type="button" class="btn btn-outline-secondary" onclick="addNote2()">添加记录</button>
+    <button type="button" class="btn btn-outline-success" onclick="check()">校验数据</button>
+    <button type="button" class="btn btn-outline-info" onclick="syncData()">同步</button>
+</div>
+
+
+<!--用于展示结果-->
+<p class="bg-info" id="result"></p>
+
+<table class="table table-bordered table-light">
+    <thead>
+    <tr>
+        <th scope="col">ID</th>
+        <th scope="col">发布人</th>
+        <th scope="col">内容</th>
+        <th scope="col">上一个hash</th>
+        <th scope="col">哈希值</th>
+        <th scope="col">MerkleTree根节点Hash</th>
+        <th scope="col">时间戳</th>
+
+    </tr>
+    </thead>
+    <tbody id="tbody">
+
+    </tbody>
+</table>
+
+<script src="js/jquery-1.12.4.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="js/bootstrap.js" type="text/javascript" charset="utf-8"></script>
+<script src="js/pb.js" type="text/javascript" charset="utf-8"></script>
+<script src="js/jsrsasign-all-min.js" type="text/javascript" charset="utf-8"></script>
+
+<script>
+
+
+    // 添加封面
+    function addGenesis() {
+        // 获取用户输入的内容
+        var content = $("#idInput").val();
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("addGenesis", "genesis=" + content, function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+            // 展示最新数据
+            showlist();
+            // 清空输入框
+            $("#idInput").val("");
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }
+
+    function addNote() {
+
+        // 发送方私钥
+        var senderPrivateKey = $("#senderPrivateKey").val();
+        // 发送方公钥
+        var senderPublicKey = $("#senderPublicKey").val();
+        // 接收方公钥
+        var receiverPublicKey = $("#receiverPublicKey").val();
+        // 转账信息
+        var content = $("#idInput").val();
+
+        /*=================================使用js库生成签名信息=====开始======================================*/
+        // 获取私钥
+        var prvKey = KEYUTIL.getKey(senderPrivateKey);
+        // 指定算法
+        var sig = new KJUR.crypto.Signature({"alg": "SHA256withRSA"});
+        // 初始化私钥
+        sig.init(prvKey);
+        // 传入原文
+        sig.updateString(content)
+        // 生成签名
+        var sigValueHex = sig.sign()
+        console.log(sigValueHex);
+        /*=================================使用js库生成签名信息=====结束======================================*/
+
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("addNote", {
+            // senderPublicKey: senderPublicKey,
+            // receiverPublicKey: receiverPublicKey,
+            content: content
+            // signaturedData: sigValueHex,
+        }, function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+            // 展示最新数据
+            showlist();
+            // 清空输入框
+            $("#idInput").val("");
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+
+    }
+
+    function addNote2() {
+        // 获取用户输入的内容
+        var content = $("#idInput").val();
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("addNote", "content=" + content, function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+            // 展示最新数据
+            showlist();
+            // 清空输入框
+            $("#idInput").val("");
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }
+
+    function showlist() {
+
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.get("showlist", function (data) {
+
+            // 清空数据
+            $("#tbody").html("")
+            // 展示操作结果
+            for (var i = 0; i < data.length; i++) {
+
+                var block = data[i];
+                var id = block.id;
+                var userName="创世区块";
+                var content = block.content;
+                if (i>=1){
+                    var obj=JSON.parse(content);
+                    content=obj.content;
+                    userName=obj.userName;
+                }
+                var preHash = block.preHash;
+                var hash = block.hash;
+                var rootHash=block.rootHash;
+                var timeStamp=block.timeStamp;
+                $("#tbody").append(
+                    "<tr>" +
+                    "<th>" + id + "</th>" +
+                    "<td>" + userName + "</td>" +
+                    "<td>" + content + "</td>" +
+                    "<td title="+preHash+">" + "<div style='width:100px;white-space:nowrap;text-overflow-ellipsis: ellipsis;overflow:hidden'>"+preHash.slice(0,10)+"..."+"</div>"+ "</td>" +
+                    "<td title="+hash+">" + "<div style='width:100px;white-space:nowrap;text-overflow-ellipsis: ellipsis;overflow:hidden'>"+hash.slice(0,10)+"..."+"</div>"+ "</td>" +
+                    "<td title="+rootHash+">" + "<div style='width:100px;white-space:nowrap;text-overflow-ellipsis: ellipsis;overflow:hidden'>"+rootHash.slice(0,10)+"..."+"</div>"+ "</td>" +
+                    "<td>" + timeStamp + "</td>" +
+                    "</tr>"
+                )
+            }
+
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }
+
+    function check() {
+
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.get("check", function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+
+    }
+
+    /*function regist() {
+        // 获取用户输入的内容
+        var content = $("#idNode").val();
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("regist", "node=" + content, function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+            // 清空输入框
+            $("#idNode").val("");
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }*/
+
+    function conn() {
+
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("conn", function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }
+
+    function broadcast() {
+        // 获取用户输入的内容
+        var content = $("#idNode").val();
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("broadcast", "msg=" + content, function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+            // 清空输入框
+            $("#idNode").val("");
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+    }
+
+    function syncData(){
+        loading.baosight.showPageLoadingMsg(false) // 显示进度条
+        // 发起请求
+        $.post("syncData", function (data) {
+            // 展示操作结果
+            $("#result").html(data)
+
+            loading.baosight.hidePageLoadingMsg() // 隐藏进度条
+        })
+        location.reload()
+    }
+
+    $(function () {
+        showlist();
+    })
+
+
+</script>
+</body>
+
+
+</html>
