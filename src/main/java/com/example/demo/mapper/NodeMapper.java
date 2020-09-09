@@ -23,12 +23,12 @@ public interface NodeMapper {
     public int insertNode(Node node);
 
     /**
-     * 通过ip和port获取节点
+     * 通过ip和端口获取节点
      * @param ip
      * @param port
      * @return
      */
-    public List<Node> getByIpAndPort(@Param("ip") String ip,@Param("port") String port);
+    public Node getNodeByIpAndPort(@Param("ip") String ip,@Param("port") String port);
 
     /**
      * 更新节点的状态
@@ -50,11 +50,11 @@ public interface NodeMapper {
      * @param port
      * @param commit
      */
-    void updateCommit(@Param("ip") String ip, @Param("port") String port, @Param("commit") int commit);
+//    void updateCommit(@Param("ip") String ip, @Param("port") int port, @Param("commit") int commit);
 
     /**
      * 获取commit状态为1的节点
      * @return
      */
-    List<Node> getCommitNode();
+//    List<Node> getCommitNode();
 }

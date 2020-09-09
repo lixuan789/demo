@@ -9,7 +9,7 @@ import java.net.URISyntaxException;
 public class test1 {
 
     public static void main(String[] args) throws URISyntaxException {
-        URI uri = new URI("ws://192.168.125.216:1234");
+        URI uri = new URI("ws://locolhost:1234");
         System.out.println(uri.toString());
     }
 }

@@ -1,20 +1,24 @@
 package com.example.demo.bean;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.example.demo.crypto.SHACoder;
 import com.example.demo.utils.HashUtils;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.io.FileUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Notebook {
     // 区块链
-    private ArrayList<Block> list = new ArrayList<>();
+    private List<Block> list = new ArrayList<>();
 
-    public ArrayList<Block> getList() {
+    public List<Block> getList() {
         return list;
     }
 
@@ -28,6 +32,14 @@ public class Notebook {
 
     public static volatile Notebook instance;
 
+    public static List<String> getContens(){
+        ArrayList<String> contens = new ArrayList<>();
+        Notebook notebook = getInstance();
+        for (Block block: notebook.list){
+            contens.add(block.content);
+        }
+        return contens;
+    }
 
     //单例模式双重检验，保证只有一份区块链
     public static Notebook getInstance() {
@@ -46,10 +58,13 @@ public class Notebook {
             File file = new File("a.json");
             // 如果文件存在,读取文件的内容并赋值给list
             if (file.exists() && file.length() > 0) {
-                ObjectMapper objectMapper = new ObjectMapper();
-
+                /*ObjectMapper objectMapper = new ObjectMapper();
                 JavaType javaType = objectMapper.getTypeFactory().constructParametricType(ArrayList.class, Block.class);
-                list = objectMapper.readValue(file, javaType);
+                list = objectMapper.readValue(file, javaType);*/
+
+                String text = FileUtils.readFileToString(file, "utf-8");
+                list = JSON.parseArray(text, Block.class);
+
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -130,7 +145,7 @@ public class Notebook {
     }
 
     // 展示交易记录
-    public ArrayList<Block> showlist() {
+    public List<Block> showlist() {
         return list;
     }
 
@@ -140,8 +155,10 @@ public class Notebook {
     public void save2Disk() {
         try {
             // jackson序列化对象的方法
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.writeValue(new File("a.json"), list);
+            /*ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.writeValue(new File("a.json"), list);*/
+            String s = JSON.toJSONString(list);
+            FileUtils.writeStringToFile(new File("a.json"),s,"utf-8");
         } catch (IOException e) {
             e.printStackTrace();
         }

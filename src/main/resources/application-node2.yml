@@ -1,8 +1,6 @@
 server:
   port: 4321
 
-node:
-  port: 2000
 
 spring:
   datasource:

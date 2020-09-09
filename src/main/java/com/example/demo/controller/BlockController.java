@@ -13,6 +13,8 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.bouncycastle.math.ec.ECPoint;
 import org.java_websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
@@ -28,12 +30,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.net.*;
 import java.util.*;
 
 @RestController
 public class BlockController {
+    private final static Logger logger=LoggerFactory.getLogger(BlockController.class);
 
     private Notebook notebook = Notebook.getInstance();
 
@@ -45,14 +49,16 @@ public class BlockController {
 
     private HashSet<MyClient> clients = new HashSet<>();//服务器包含的客户端
 
-    @Value("${node.port}")
     private String serverport;
 
     /**
      * 一启动程序，启动服务器并插入数据库，最后向其他所有客户端发起连接
      */
     @PostConstruct
-    public void init() throws URISyntaxException {
+    public void init() throws URISyntaxException, IOException {
+        ServerSocket s = new ServerSocket(0);
+        serverport=String.valueOf(s.getLocalPort());
+        s.close();
         //1.启动服务器
         server = new MyServer(Integer.parseInt(serverport));
         server.start();
@@ -69,7 +75,7 @@ public class BlockController {
             if (url.equals(curUrl)){
                 continue;
             }
-            System.out.println("发起连接:"+url);
+            logger.info(url+":发起连接");
             URI uri = new URI("ws://" + url);
             MyClient client = new MyClient(uri,url,nodeMapper);
             client.connect();
@@ -77,30 +83,22 @@ public class BlockController {
         }
 
         //3.已存在则不插入，进行更新
-        List<Node> result = nodeMapper.getByIpAndPort(ip, serverport);
-        if (result != null && result.size() > 0) {
-            if (result.get(0).getState()==0){
+        Node result = nodeMapper.getNodeByIpAndPort(ip,serverport);//通过ip获取节点
+        if (result != null) {
+            if (result.getState()==0){
                 //已经存在，并且状态为0，状态更新为1
-                System.out.println("节点状态更新为1");
+                logger.info("节点:"+curUrl+"的状态更新为1");
                 nodeMapper.updateState(ip, serverport, 1);
             }
-            if (result.get(0).getCommit()==0){
-                //已经存在，并且状态为0，状态更新为1
-                System.out.println("commit状态更新为1");
-                nodeMapper.updateCommit(ip, serverport, 1);
-            }
-            return;
+        }else {
+            //3.不存在插入新节点
+            Node node = new Node();
+            node.setIp(ip);
+            node.setPort(serverport);
+            node.setState(1);//为在线状态
+            node.setHostName(hostName);
+            nodeMapper.insertNode(node);
         }
-
-        //3.插入新节点
-        Node node = new Node();
-        node.setIp(ip);
-        node.setPort(serverport);
-        node.setState(1);//为在线状态
-        node.setHostName(hostName);
-        node.setCommit(0);
-        nodeMapper.insertNode(node);
-
 
     }
 
@@ -126,14 +124,36 @@ public class BlockController {
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
     public String addNote(String content, HttpSession session) {
         //先进行共识
-        server.broadcast("请求达成共识");
+        /*server.broadcast("请求达成共识");*/
+        for (MyClient client : clients) {
+            try {
+                if (!client.isOpen()) {
+                    if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
+                        client.connect();
+                    } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
+                        client.reconnect();
+                    }
+                }
+                if (!client.getReadyState().equals(WebSocket.READYSTATE.OPEN)){
+                    String name = client.getName();
+                    String[] split = name.split(":");
+                    String ip=split[0];
+                    String port=split[1];
+                    System.out.println(name+"未开启");
+                    nodeMapper.updateState(ip,port,0);
+                    continue;
+                }
+                client.send("共识");
+            }catch (RuntimeException e){
+                return "同步失败"+e.getMessage();
+            }
+        }
 
         String userName = (String) session.getAttribute("loginUser");
 //        String hostName=WebUtils.getHostName();
         Transaction transaction = new Transaction(content,userName);
         try {
             if (content.matches(".*(中汽数据).*")){
-
                 if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
                     if (transaction.verify()){
                         ObjectMapper objectMapper = new ObjectMapper();
@@ -147,7 +167,6 @@ public class BlockController {
                         notebook.addNote(transactionString);//本地存一份
                         return "添加记录成功";
                     }else {
-//                        throw new RuntimeException("交易数据校验失败");
                         return "交易数据校验失败";
                     }
                 }else {
@@ -170,13 +189,14 @@ public class BlockController {
 
     //PBFT消息节点最少确认个数计算
     private double getConnecttedNodeCount() {
-        List<Node> list=nodeMapper.getCommitNode();
-        return list.size();
+//        List<Node> list=nodeMapper.getCommitNode();
+//        return list.size();
+        return server.getCommit()+1;//加上自己
     }
 
     // 展示记录
     @RequestMapping(value = "/showlist", method = RequestMethod.GET)
-    public ArrayList<Block> showlist() {
+    public List<Block> showlist() {
         return notebook.showlist();
     }
 
@@ -195,7 +215,6 @@ public class BlockController {
     // 请求同步其他节点的区块链数据
     @RequestMapping("/syncData")
     public String syncData() {
-
         for (MyClient client : clients) {
             //括号里是client没有初试过，用别的方法判断也可以，反正一定要判断到 client没有初始化过。
             try {
@@ -219,7 +238,6 @@ public class BlockController {
             }catch (RuntimeException e){
                 return "同步失败"+e.getMessage();
             }
-
         }
         return "同步失败";
 
