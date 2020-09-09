@@ -72,7 +72,6 @@ public class Transaction {
             BigInteger privateKey = Base64.decodeInteger(baos1.toByteArray());
 
             String strPublicKey = Base64.encodeBase64String(publicKey.getEncoded(true));
-            System.out.println(strPublicKey);
             this.senderPublicKey=strPublicKey;
 //        this.encode=SM2.getHexString(sm2.encrypt(content,publicKey));
             this.signaturedData=sm2.sign(content, "Heartbeats", new SM2KeyPair(publicKey, privateKey)).toString();

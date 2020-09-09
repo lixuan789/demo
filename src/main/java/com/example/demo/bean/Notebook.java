@@ -217,7 +217,7 @@ public class Notebook {
     }
 
     // 和本地的区块链进行比较,如果对方的数据比较新,就用对方的数据替换本地的数据
-    public void compareData(ArrayList<Block> newList) {
+    public void compareData(List<Block> newList) {
         // 比较长度, 校验
         if (newList.size() > list.size()) {
             System.out.println("其他节点的长度大，需要更新！");

@@ -10,16 +10,17 @@
     <update id="updateState">
         update node set state=#{state} where ip=#{ip} and port=#{port}
     </update>
-    <!--<update id="updateCommit">
+
+    <update id="updateCommit">
         update node set commit=#{commit} where ip=#{ip} and port=#{port}
-    </update>-->
+    </update>
 
     <select id="getAll" resultMap="BaseResultMap">
         select * from node
     </select>
 
     <insert id="insertNode" parameterType="com.example.demo.bean.Node">
-        insert into node (ip,port,state,hostName) values (#{ip},#{port},#{state},#{hostName})
+        insert into node (ip,port,state,hostName,commit) values (#{ip},#{port},#{state},#{hostName},#{commit})
     </insert>
 
     <select id="getNodeByIpAndPort" resultMap="BaseResultMap">
@@ -28,8 +29,8 @@
     <select id="getOnlineNode" resultType="com.example.demo.bean.Node">
         select * from node where state=1
     </select>
-    <!--<select id="getCommitNode" resultType="com.example.demo.bean.Node">
+    <select id="getCommitNode" resultType="com.example.demo.bean.Node">
         select * from node where commit=1
-    </select>-->
+    </select>
 
 </mapper>

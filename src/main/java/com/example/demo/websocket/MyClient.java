@@ -111,7 +111,7 @@ public class MyClient extends WebSocketClient {
                 List<String> contens = Notebook.getContens();//本地的数据
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){
-                    System.out.println("客户端收到服务端错误的JSON化数据");
+                    logger.info("MerkleTree跟节点hash校验错误，请同步");
                     return;
                 }
                 //校验成功，进入commit状态
@@ -120,39 +120,23 @@ public class MyClient extends WebSocketClient {
                 String port=split[1];
 
                 logger.info(name+"确认通过");
+                nodeMapper.updateCommit(ip,port,1);
                 this.send("达成共识");
-                /*if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
-                    this.send("客户端开始区块入库啦");
-                }*/
             }
         }else if (messageBean.type == 1) {
             // 收到的是区块链数据
-            ArrayList<Block> newList = (ArrayList<Block>) JSON.parseArray(messageBean.msg, Block.class);
-                /*JavaType javaType = objectMapper.getTypeFactory().constructParametricType(ArrayList.class, Block.class);
-                ArrayList<Block> newList = objectMapper.readValue(messageBean.msg, javaType);*/
-            // 和本地的区块链进行比较,如果对方的数据比较新,就用对方的数据替换本地的数据
+            List<Block> newList =JSON.parseArray(messageBean.msg, Block.class);
             notebook.compareData(newList);
 
         } else if (messageBean.type == 2) {
             //收到的是交易信息
             Transaction transaction = JSON.parseObject(messageBean.msg, Transaction.class);
-//                Transaction transaction = objectMapper.readValue(messageBean.msg, Transaction.class);
             if (transaction.verify()) {
                 notebook.addNote(messageBean.msg);//加到区块链
             }
         }
     }
 
-    //已经在连接的节点的个数
-    /*private double getLeastNodeCount() {
-        List<Node> list = nodeMapper.getOnlineNode();
-        return list.size();
-    }*/
-
-    //PBFT消息节点最少确认个数计算
-    /*private double getConnecttedNodeCount() {
-        return 1;//还有自己
-    }*/
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
@@ -160,6 +144,7 @@ public class MyClient extends WebSocketClient {
         String ip=split[0];
         String port=split[1];
         nodeMapper.updateState(ip,port,0);
+        nodeMapper.updateCommit(ip,port,0);
         logger.info("客户端" +name + "关闭了连接");
     }
 

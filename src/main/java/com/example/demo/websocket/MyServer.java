@@ -81,8 +81,6 @@ public class MyServer extends WebSocketServer {
         }else {
             //收到入库的消息则不再发送
             if ("达成共识".equals(message)){
-                commit++;
-                System.out.println("确认节点的数量："+commit);
                 return;
             }
             //收到的不是JSON化数据，则说明仍处在双方建立连接的过程中。目前连接已经建立完毕，发起投票

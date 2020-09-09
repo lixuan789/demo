@@ -55,7 +55,7 @@ public class BlockController {
      * 一启动程序，启动服务器并插入数据库，最后向其他所有客户端发起连接
      */
     @PostConstruct
-    public void init() throws URISyntaxException, IOException {
+    public void init() throws URISyntaxException, IOException, InterruptedException {
         ServerSocket s = new ServerSocket(0);
         serverport=String.valueOf(s.getLocalPort());
         s.close();
@@ -78,7 +78,8 @@ public class BlockController {
             logger.info(url+":发起连接");
             URI uri = new URI("ws://" + url);
             MyClient client = new MyClient(uri,url,nodeMapper);
-            client.connect();
+            client.connectBlocking();
+//            client.connect();
             clients.add(client);
         }
 
@@ -97,6 +98,7 @@ public class BlockController {
             node.setPort(serverport);
             node.setState(1);//为在线状态
             node.setHostName(hostName);
+            node.setCommit(0);
             nodeMapper.insertNode(node);
         }
 
@@ -124,31 +126,8 @@ public class BlockController {
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
     public String addNote(String content, HttpSession session) {
         //先进行共识
-        /*server.broadcast("请求达成共识");*/
-        for (MyClient client : clients) {
-            try {
-                if (!client.isOpen()) {
-                    if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
-                        client.connect();
-                    } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
-                        client.reconnect();
-                    }
-                }
-                if (!client.getReadyState().equals(WebSocket.READYSTATE.OPEN)){
-                    String name = client.getName();
-                    String[] split = name.split(":");
-                    String ip=split[0];
-                    String port=split[1];
-                    System.out.println(name+"未开启");
-                    nodeMapper.updateState(ip,port,0);
-                    continue;
-                }
-                client.send("共识");
-            }catch (RuntimeException e){
-                return "同步失败"+e.getMessage();
-            }
-        }
 
+        server.broadcast("请求达成共识");
         String userName = (String) session.getAttribute("loginUser");
 //        String hostName=WebUtils.getHostName();
         Transaction transaction = new Transaction(content,userName);
@@ -161,9 +140,7 @@ public class BlockController {
                         //广播交易数据
                         MessageBean messageBean = new MessageBean(2, transactionString);
                         String msg = objectMapper.writeValueAsString(messageBean);
-
                         server.broadcast(msg);//广播交易数据
-
                         notebook.addNote(transactionString);//本地存一份
                         return "添加记录成功";
                     }else {
@@ -189,9 +166,8 @@ public class BlockController {
 
     //PBFT消息节点最少确认个数计算
     private double getConnecttedNodeCount() {
-//        List<Node> list=nodeMapper.getCommitNode();
-//        return list.size();
-        return server.getCommit()+1;//加上自己
+        List<Node> list=nodeMapper.getCommitNode();
+        return list.size()+1;//加上自己
     }
 
     // 展示记录
@@ -216,8 +192,11 @@ public class BlockController {
     @RequestMapping("/syncData")
     public String syncData() {
         for (MyClient client : clients) {
+            if (client!=null&&client.isOpen()){
+                client.send("同步数据");
+            }
             //括号里是client没有初试过，用别的方法判断也可以，反正一定要判断到 client没有初始化过。
-            try {
+            /*try {
                 if (!client.isOpen()) {
                     if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
                         client.connect();
@@ -234,13 +213,13 @@ public class BlockController {
                     nodeMapper.updateState(ip,port,0);
                     continue;
                 }
+                System.out.println("发送同步数据");
                 client.send("同步数据");
             }catch (RuntimeException e){
                 return "同步失败"+e.getMessage();
-            }
+            }*/
         }
         return "同步失败";
-
     }
 
 }

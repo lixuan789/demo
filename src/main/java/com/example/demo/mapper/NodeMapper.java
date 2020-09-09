@@ -44,17 +44,18 @@ public interface NodeMapper {
      */
     List<Node> getOnlineNode();
 
+
     /**
      * 更新节点的commit状态
      * @param ip
      * @param port
      * @param commit
      */
-//    void updateCommit(@Param("ip") String ip, @Param("port") int port, @Param("commit") int commit);
+    void updateCommit(@Param("ip") String ip, @Param("port") String port, @Param("commit") int commit);
 
     /**
      * 获取commit状态为1的节点
      * @return
      */
-//    List<Node> getCommitNode();
+    List<Node> getCommitNode();
 }
