@@ -1,6 +1,3 @@
-server:
-  port: 4321
-
 
 spring:
   datasource:
