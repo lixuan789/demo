@@ -15,13 +15,19 @@ import java.util.List;
 public class PBFTUtils {
 
 
-
     public static VoteInfo creteVoteInfo(VoteEnum ve) {
         VoteInfo vi=new VoteInfo();
 
         vi.setCode(ve.getCode());
 
-        List<String> contens = Notebook.getContens();
+        Notebook instance = Notebook.getInstance();
+        List<Block> list = instance.getList();
+
+        ArrayList<String> contens = new ArrayList<>();
+        for (Block block: list){
+            contens.add(block.content);
+        }
+//        List<String> contens = Notebook.getContens();
         vi.setList(contens);
         String hash = new MerkleTree(contens).getRoot().getHash();
         vi.setHash(hash);

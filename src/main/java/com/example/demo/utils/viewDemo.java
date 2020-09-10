@@ -1,4 +1,5 @@
 package com.example.demo.utils;
+import com.example.demo.DemoApplication;
 import javafx.application.Application;
 import javafx.event.EventHandler;
 import javafx.scene.Scene;
@@ -14,7 +15,9 @@ public class viewDemo extends Application {
     public void start(Stage primaryStage) throws Exception {
         javafx.scene.web.WebView web=new javafx.scene.web.WebView();
         WebEngine engine=web.getEngine();
-        engine.load("http://localhost:1234/a");
+        String port = DemoApplication.port;
+        System.out.println(port);
+        engine.load("http://localhost:"+port+"/a");
         //engine.load("http://www.baidu.com");
         AnchorPane root=new AnchorPane();
         root.getChildren().add(web);

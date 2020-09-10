@@ -15,6 +15,10 @@
         update node set commit=#{commit} where ip=#{ip} and port=#{port}
     </update>
 
+    <select id="isCommit" resultType="com.example.demo.bean.Node">
+        select * from node where ip=#{ip} and port=#{port} and commit=1
+    </select>
+
     <select id="getAll" resultMap="BaseResultMap">
         select * from node
     </select>
@@ -29,6 +33,7 @@
     <select id="getOnlineNode" resultType="com.example.demo.bean.Node">
         select * from node where state=1
     </select>
+
     <select id="getCommitNode" resultType="com.example.demo.bean.Node">
         select * from node where commit=1
     </select>

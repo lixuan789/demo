@@ -49,6 +49,8 @@ public class BlockController {
 
     private HashSet<MyClient> clients = new HashSet<>();//服务器包含的客户端
 
+    private HashMap<String, MyClient> map=new HashMap<>();
+
     private String serverport;
 
     /**
@@ -69,6 +71,7 @@ public class BlockController {
 
         //2.连接其他节点
         String curUrl=ip+":"+serverport;
+//        List<Node> onlineNode = nodeMapper.getOnlineNode();
         List<Node> all = nodeMapper.getAll();
         for (Node n : all) {
             String url = n.getIp() + ":" + n.getPort();
@@ -78,9 +81,9 @@ public class BlockController {
             logger.info(url+":发起连接");
             URI uri = new URI("ws://" + url);
             MyClient client = new MyClient(uri,url,nodeMapper);
-            client.connectBlocking();
-//            client.connect();
+            client.connect();
             clients.add(client);
+            map.put(url,client);
         }
 
         //3.已存在则不插入，进行更新
@@ -124,10 +127,36 @@ public class BlockController {
 
     // 添加记录
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
-    public String addNote(String content, HttpSession session) {
-        //先进行共识
+    public String addNote(String content, HttpSession session) throws URISyntaxException, InterruptedException {
 
-        server.broadcast("请求达成共识");
+        //创建连接新加入节点的客户端
+        List<Node> all = nodeMapper.getOnlineNode();
+        String ip = WebUtils.getHostIp();
+        String curUrl=ip+":"+serverport;
+        for (Node node:all){
+            String url=node.getIp()+":"+node.getPort();
+            if (url.equals(curUrl)){
+                continue;
+            }
+            if (map.containsKey(url)){
+                continue;
+            }
+            URI uri = new URI("ws://" + url);
+            MyClient client = new MyClient(uri,url,nodeMapper);
+            client.connectBlocking();
+//            client.connect();
+            clients.add(client);
+            map.put(url,client);
+        }
+
+        //先进行共识
+        for (MyClient client : clients) {
+            if (client != null && client.isOpen()) {
+                client.send("共识");
+            }
+        }
+        //先进行共识
+//        server.broadcast("请求达成共识");
         String userName = (String) session.getAttribute("loginUser");
 //        String hostName=WebUtils.getHostName();
         Transaction transaction = new Transaction(content,userName);
@@ -142,12 +171,13 @@ public class BlockController {
                         String msg = objectMapper.writeValueAsString(messageBean);
                         server.broadcast(msg);//广播交易数据
                         notebook.addNote(transactionString);//本地存一份
+
                         return "添加记录成功";
                     }else {
                         return "交易数据校验失败";
                     }
                 }else {
-                    return "未达成共识";
+                    return "未达成共识,请先进行同步";
                 }
             }else {
                 return "内容需包含中汽数据";
@@ -180,7 +210,6 @@ public class BlockController {
     @RequestMapping(value = "/check", method = RequestMethod.GET)
     public String check() {
         String check = notebook.check();
-
         if (StringUtils.isEmpty(check)) {
             return "数据是安全的";
         }
@@ -190,33 +219,38 @@ public class BlockController {
 
     // 请求同步其他节点的区块链数据
     @RequestMapping("/syncData")
-    public String syncData() {
-        for (MyClient client : clients) {
-            if (client!=null&&client.isOpen()){
-                client.send("同步数据");
+    public String syncData() throws URISyntaxException, InterruptedException {
+
+
+        List<Node> all = nodeMapper.getOnlineNode();
+        String ip = WebUtils.getHostIp();
+        String curUrl=ip+":"+serverport;
+        for (Node node:all){
+            String url=node.getIp()+":"+node.getPort();
+            if (url.equals(curUrl)){
+                continue;
             }
-            //括号里是client没有初试过，用别的方法判断也可以，反正一定要判断到 client没有初始化过。
-            /*try {
-                if (!client.isOpen()) {
-                    if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
-                        client.connect();
-                    } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
-                        client.reconnect();
-                    }
+            if (map.containsKey(url)){
+                continue;
+            }
+            URI uri = new URI("ws://" + url);
+            MyClient client = new MyClient(uri,url,nodeMapper);
+            client.connectBlocking();
+//            client.connect();
+            clients.add(client);
+            map.put(url,client);
+        }
+        for (MyClient client : clients) {
+            if (!client.isOpen()) {
+                if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
+                    client.connect();
+                } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
+                    client.reconnect();
                 }
-                if (!client.getReadyState().equals(WebSocket.READYSTATE.OPEN)){
-                    String name = client.getName();
-                    String[] split = name.split(":");
-                    String ip=split[0];
-                    String port=split[1];
-                    System.out.println(name+"未开启");
-                    nodeMapper.updateState(ip,port,0);
-                    continue;
-                }
-                System.out.println("发送同步数据");
+            }
+            client.send("同步数据");
+            /*if (client!=null&&client.isOpen()){
                 client.send("同步数据");
-            }catch (RuntimeException e){
-                return "同步失败"+e.getMessage();
             }*/
         }
         return "同步失败";

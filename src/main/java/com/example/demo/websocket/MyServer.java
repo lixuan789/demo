@@ -6,6 +6,7 @@ import com.example.demo.bean.Block;
 import com.example.demo.bean.MessageBean;
 import com.example.demo.bean.Notebook;
 import com.example.demo.bean.Transaction;
+import com.example.demo.mapper.NodeMapper;
 import com.example.demo.merkle.MerkleTree;
 import com.example.demo.pbft.VoteEnum;
 import com.example.demo.pbft.VoteInfo;
@@ -19,6 +20,7 @@ import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -35,7 +37,7 @@ public class MyServer extends WebSocketServer {
     private int port;
 
     //客户端进行确认的数量
-    private int commit;
+    /*private int commit;
 
     public int getCommit() {
         return commit;
@@ -43,7 +45,7 @@ public class MyServer extends WebSocketServer {
 
     public void setCommit(int commit) {
         this.commit = commit;
-    }
+    }*/
 
     public MyServer(int port) {
         super(new InetSocketAddress(port));
@@ -53,34 +55,33 @@ public class MyServer extends WebSocketServer {
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         logger.info("服务器:" + ip+":"+port + "打开了连接");
+//        nodeMapper.updateState(ip,String.valueOf(port),1);
         conn.send("服务器成功创建");//发送消息
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         logger.info("服务器:" + ip+":"+port + "关闭了连接");
+//        nodeMapper.updateState(ip,String.valueOf(port),0);
     }
 
     @Override
     public void onMessage(WebSocket conn, String message) {
         logger.info("服务器:" + ip+":"+port + "收到了消息："+message);
-
+        Notebook notebook = Notebook.getInstance();
         if ("同步数据".equals(message)) {//此方法是同步数据
             // 获取本地的区块链数据
-            Notebook notebook = Notebook.getInstance();
             List<Block> list = notebook.showlist();
             // 发送给连接到本服务器的所有客户端
             String blockChainData=JSON.toJSONString(list);
-                /*ObjectMapper objectMapper = new ObjectMapper();
-                String blockChainData = objectMapper.writeValueAsString(list);*/
             MessageBean messageBean = new MessageBean(1, blockChainData);
             String msg = JSON.toJSONString(messageBean);
-//                String msg = objectMapper.writeValueAsString(messageBean);
             // 广播消息
             broadcast(msg);
         }else {
             //收到入库的消息则不再发送
-            if ("达成共识".equals(message)){
+            if ("共识".equals(message)){
+                conn.send("请求达成共识");
                 return;
             }
             //收到的不是JSON化数据，则说明仍处在双方建立连接的过程中。目前连接已经建立完毕，发起投票
@@ -89,7 +90,7 @@ public class MyServer extends WebSocketServer {
                 String viString = JSON.toJSONString(vi);
                 MessageBean messageBean = new MessageBean(0, viString);//发送类型为0的消息
                 conn.send(JSON.toJSONString(messageBean));
-                logger.info("服务端发送到客户端的pbft消息："+viString);
+                logger.info("服务端发送到客户端的pbft消息:PREPREPARE状态");
                 return;
             }
 
@@ -103,9 +104,14 @@ public class MyServer extends WebSocketServer {
                 //校验hash
                 VoteInfo voteInfo = JSON.parseObject(message, VoteInfo.class);
 
-                List<String> contens = Notebook.getContens();
+                List<Block> list = notebook.getList();
+                ArrayList<String> contens = new ArrayList<>();
+                for (Block block: list){
+                    contens.add(block.content);
+                }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){
+                    System.out.println("MerkleTree根节点hash值校验失败，请先同步");
                     return;//非法JSON化数据
                 }
                 //校验成功，发送下一个状态的数据

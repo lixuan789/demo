@@ -58,4 +58,6 @@ public interface NodeMapper {
      * @return
      */
     List<Node> getCommitNode();
+
+    Node isCommit(@Param("ip") String ip,@Param("port") String port);
 }

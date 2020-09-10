@@ -32,14 +32,14 @@ public class Notebook {
 
     public static volatile Notebook instance;
 
-    public static List<String> getContens(){
+    /*public static List<String> getContens(){
         ArrayList<String> contens = new ArrayList<>();
         Notebook notebook = getInstance();
         for (Block block: notebook.list){
             contens.add(block.content);
         }
         return contens;
-    }
+    }*/
 
     //单例模式双重检验，保证只有一份区块链
     public static Notebook getInstance() {

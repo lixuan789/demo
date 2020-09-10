@@ -34,6 +34,8 @@ public class MyClient extends WebSocketClient {
 
     private String name;
 
+    private Boolean flag;//hash校验是否不通过
+
     public String getName() {
         return name;
     }
@@ -66,6 +68,14 @@ public class MyClient extends WebSocketClient {
     @Override
     public void onMessage(String message) {
         logger.info("客户端__" + name + "__收到了消息:"+message);
+        String[] split = name.split(":");
+        String ip=split[0];
+        String port=split[1];
+        /*Node commit = nodeMapper.isCommit(ip, port);
+        if (commit!=null){//已经确认过了直接跳过
+            return;
+        }*/
+
         if ("请求达成共识".equals(message)){
             this.send("客户端成功创建");
             return;
@@ -76,8 +86,6 @@ public class MyClient extends WebSocketClient {
         }
 
         MessageBean messageBean = JSON.parseObject(message, MessageBean.class);
-            /*ObjectMapper objectMapper = new ObjectMapper();
-            MessageBean messageBean = objectMapper.readValue(message, MessageBean.class);*/
         Notebook notebook = Notebook.getInstance();
         // 判断消息类型
         if (messageBean.type==0){
@@ -91,13 +99,22 @@ public class MyClient extends WebSocketClient {
             if (code==VoteEnum.PREPREPARE.getCode()){
                 //校验hash
                 VoteInfo voteInfo = JSON.parseObject(messageBean.msg, VoteInfo.class);
-                List<String> contens = Notebook.getContens();//本地的数据
+                //获取本地数据
+                List<Block> list = notebook.getList();
+                ArrayList<String> contens = new ArrayList<>();
+                for (Block block: list){
+                    contens.add(block.content);
+                }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){
+                    this.flag=true;//校验不通过
+                    System.out.println("MerkleTree跟节点hash校验错误，请同步");
                     logger.info("MerkleTree跟节点hash校验错误，请同步");
+//                    nodeMapper.updateCommit(ip,port,1);
                     return;
                 }
 
+                this.flag=false;
                 //校验成功，发送下一阶段状态的数据
                 VoteInfo vi = PBFTUtils.creteVoteInfo(VoteEnum.PREPARE);
                 this.send(JSON.toJSONString(vi));
@@ -108,27 +125,32 @@ public class MyClient extends WebSocketClient {
                 //校验hash
                 VoteInfo voteInfo = JSON.parseObject(messageBean.msg, VoteInfo.class);
 
-                List<String> contens = Notebook.getContens();//本地的数据
+                List<Block> list = notebook.getList();
+                ArrayList<String> contens = new ArrayList<>();
+                for (Block block: list){
+                    contens.add(block.content);
+                }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){
-                    logger.info("MerkleTree跟节点hash校验错误，请同步");
+                    System.out.println("MerkleTree跟节点hash校验错误，请同步");
                     return;
                 }
                 //校验成功，进入commit状态
-                String[] split = name.split(":");
-                String ip=split[0];
-                String port=split[1];
 
                 logger.info(name+"确认通过");
                 nodeMapper.updateCommit(ip,port,1);
-                this.send("达成共识");
+//                this.send("达成共识");
+                /*if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
+                    this.send("客户端开始区块入库啦");
+                }*/
             }
         }else if (messageBean.type == 1) {
             // 收到的是区块链数据
-            List<Block> newList =JSON.parseArray(messageBean.msg, Block.class);
+            ArrayList<Block> newList = (ArrayList<Block>) JSON.parseArray(messageBean.msg, Block.class);
+            // 和本地的区块链进行比较,如果对方的数据比较新,就用对方的数据替换本地的数据
             notebook.compareData(newList);
 
-        } else if (messageBean.type == 2) {
+        } else if (messageBean.type == 2&&!flag) {
             //收到的是交易信息
             Transaction transaction = JSON.parseObject(messageBean.msg, Transaction.class);
             if (transaction.verify()) {
@@ -137,6 +159,16 @@ public class MyClient extends WebSocketClient {
         }
     }
 
+    //已经在连接的节点的个数
+    /*private double getLeastNodeCount() {
+        List<Node> list = nodeMapper.getOnlineNode();
+        return list.size();
+    }*/
+
+    //PBFT消息节点最少确认个数计算
+    /*private double getConnecttedNodeCount() {
+        return 1;//还有自己
+    }*/
 
     @Override
     public void onClose(int code, String reason, boolean remote) {
