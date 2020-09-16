@@ -13,10 +13,9 @@ public class LoginController {
 
     @PostMapping("/login")
     public String login(@RequestParam("username") String username,
-                        @RequestParam("password") String password,
                         Model model, HttpSession session){
 
-        if (!StringUtils.isEmpty(username) && "123456".equals(password)){
+        if (!StringUtils.isEmpty(username)){
             //登录成功！将用户信息放入session
             session.setAttribute("loginUser",username);
             //登录成功！防止表单重复提交，我们重定向

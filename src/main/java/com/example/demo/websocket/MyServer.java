@@ -36,6 +36,15 @@ public class MyServer extends WebSocketServer {
     //服务器端口
     private int port;
 
+    private List<WebSocket> localSockets=new ArrayList<WebSocket>();
+
+    public List<WebSocket> getLocalSockets() {
+        return localSockets;
+    }
+
+    public void setLocalSockets(List<WebSocket> localSockets) {
+        this.localSockets = localSockets;
+    }
     //客户端进行确认的数量
     /*private int commit;
 
@@ -56,12 +65,14 @@ public class MyServer extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         logger.info("服务器:" + ip+":"+port + "打开了连接");
 //        nodeMapper.updateState(ip,String.valueOf(port),1);
+        localSockets.add(conn);
         conn.send("服务器成功创建");//发送消息
     }
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
         logger.info("服务器:" + ip+":"+port + "关闭了连接");
+        localSockets.remove(conn);
 //        nodeMapper.updateState(ip,String.valueOf(port),0);
     }
 
@@ -129,6 +140,7 @@ public class MyServer extends WebSocketServer {
     //onError方法调用完毕会触发onClose方法
     @Override
     public void onError(WebSocket conn, Exception ex) {
+        localSockets.remove(conn);
         logger.info("服务器" +ip+":"+ port + "发生错误");
     }
 

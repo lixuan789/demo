@@ -244,16 +244,17 @@
         loading.baosight.showPageLoadingMsg(false) // 显示进度条
         // 发起请求
         $.post("syncData", function (data) {
+
             // 展示操作结果
             $("#result").html(data)
             showlist();
             loading.baosight.hidePageLoadingMsg() // 隐藏进度条
         })
-        location.reload()
     }
 
     $(function () {
         showlist();
+        //syncData();
     })
 
 

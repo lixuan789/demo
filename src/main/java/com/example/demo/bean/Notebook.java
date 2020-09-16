@@ -56,6 +56,9 @@ public class Notebook {
     private void init() {
         try {
             File file = new File("a.json");
+            if (!file.exists()){//如果文件不存在就创建一个
+                file.createNewFile();
+            }
             // 如果文件存在,读取文件的内容并赋值给list
             if (file.exists() && file.length() > 0) {
                 /*ObjectMapper objectMapper = new ObjectMapper();
@@ -64,7 +67,6 @@ public class Notebook {
 
                 String text = FileUtils.readFileToString(file, "utf-8");
                 list = JSON.parseArray(text, Block.class);
-
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -166,6 +168,7 @@ public class Notebook {
     }
 
     public String check() {
+        init();
 
         StringBuilder sb = new StringBuilder();
 
@@ -219,10 +222,19 @@ public class Notebook {
     // 和本地的区块链进行比较,如果对方的数据比较新,就用对方的数据替换本地的数据
     public void compareData(List<Block> newList) {
         // 比较长度, 校验
-        if (newList.size() > list.size()) {
-            System.out.println("其他节点的长度大，需要更新！");
-            list = newList;
-            save2Disk();
+        try {
+            File file = new File("a.json");
+            if (!file.exists()){//如果文件不存在就创建一个
+                file.createNewFile();
+            }
+
+            if (newList.size() > list.size()) {
+                System.out.println("其他节点的长度大，需要更新！");
+                list = newList;
+                save2Disk();
+            }
+        }catch (IOException e){
+            e.printStackTrace();
         }
     }
 }

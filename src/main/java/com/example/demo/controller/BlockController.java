@@ -34,10 +34,11 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 public class BlockController {
-    private final static Logger logger=LoggerFactory.getLogger(BlockController.class);
+    private final static Logger logger = LoggerFactory.getLogger(BlockController.class);
 
     private Notebook notebook = Notebook.getInstance();
 
@@ -49,7 +50,7 @@ public class BlockController {
 
     private HashSet<MyClient> clients = new HashSet<>();//服务器包含的客户端
 
-    private HashMap<String, MyClient> map=new HashMap<>();
+    private ConcurrentHashMap<String, MyClient> map = new ConcurrentHashMap<>();
 
     private String serverport;
 
@@ -59,7 +60,7 @@ public class BlockController {
     @PostConstruct
     public void init() throws URISyntaxException, IOException, InterruptedException {
         ServerSocket s = new ServerSocket(0);
-        serverport=String.valueOf(s.getLocalPort());
+        serverport = String.valueOf(s.getLocalPort());
         s.close();
         //1.启动服务器
         server = new MyServer(Integer.parseInt(serverport));
@@ -70,31 +71,31 @@ public class BlockController {
         String hostName = WebUtils.getHostName();
 
         //2.连接其他节点
-        String curUrl=ip+":"+serverport;
+        String curUrl = ip + ":" + serverport;
 //        List<Node> onlineNode = nodeMapper.getOnlineNode();
         List<Node> all = nodeMapper.getAll();
         for (Node n : all) {
             String url = n.getIp() + ":" + n.getPort();
-            if (url.equals(curUrl)){
+            if (url.equals(curUrl)) {
                 continue;
             }
-            logger.info(url+":发起连接");
+            logger.info(url + ":发起连接");
             URI uri = new URI("ws://" + url);
-            MyClient client = new MyClient(uri,url,nodeMapper);
+            MyClient client = new MyClient(uri, url, nodeMapper);
             client.connect();
             clients.add(client);
-            map.put(url,client);
+            map.put(url, client);
         }
 
         //3.已存在则不插入，进行更新
-        Node result = nodeMapper.getNodeByIpAndPort(ip,serverport);//通过ip获取节点
+        Node result = nodeMapper.getNodeByIpAndPort(ip, serverport);//通过ip获取节点
         if (result != null) {
-            if (result.getState()==0){
+            if (result.getState() == 0) {
                 //已经存在，并且状态为0，状态更新为1
-                logger.info("节点:"+curUrl+"的状态更新为1");
+                logger.info("节点:" + curUrl + "的状态更新为1");
                 nodeMapper.updateState(ip, serverport, 1);
             }
-        }else {
+        } else {
             //3.不存在插入新节点
             Node node = new Node();
             node.setIp(ip);
@@ -127,43 +128,67 @@ public class BlockController {
 
     // 添加记录
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
-    public String addNote(String content, HttpSession session) throws URISyntaxException, InterruptedException {
-
+    public String addNote(String content, HttpSession session) throws URISyntaxException {
+        if (clients.size() > 0) {
+            for (MyClient client : clients) {
+                if (client == null) {
+                    continue;
+                }
+                if (!client.isOpen()) {
+                    /*if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
+                        client.connect();
+                    } else */
+                    if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
+                        String name = client.getName();
+                        String[] split = name.split(":");
+                        String url = split[0] + ":" + split[1];
+                        URI uri = new URI("ws://" + url);
+                        MyClient temp = new MyClient(uri, url, nodeMapper);
+                        temp.connect();
+                        map.put(url, temp);
+//                    client.reconnect();
+                    }
+                }
+            }
+        }
         //创建连接新加入节点的客户端
         List<Node> all = nodeMapper.getOnlineNode();
         String ip = WebUtils.getHostIp();
-        String curUrl=ip+":"+serverport;
-        for (Node node:all){
-            String url=node.getIp()+":"+node.getPort();
-            if (url.equals(curUrl)){
-                continue;
-            }
-            if (map.containsKey(url)){
+        String curUrl = ip + ":" + serverport;
+        for (Node node : all) {
+            String url = node.getIp() + ":" + node.getPort();
+            if (url.equals(curUrl) || map.containsKey(url)) {
                 continue;
             }
             URI uri = new URI("ws://" + url);
-            MyClient client = new MyClient(uri,url,nodeMapper);
-            client.connectBlocking();
-//            client.connect();
+            MyClient client = new MyClient(uri, url, nodeMapper);
+//            client.connectBlocking();
+            client.connect();
             clients.add(client);
-            map.put(url,client);
+            map.put(url, client);
         }
 
         //先进行共识
-        for (MyClient client : clients) {
+        for (String key : map.keySet()) {
+            MyClient client = map.get(key);
             if (client != null && client.isOpen()) {
                 client.send("共识");
             }
         }
+        /*for (MyClient client : clients) {
+            if (client != null && client.isOpen()) {
+                client.send("共识");
+            }
+        }*/
         //先进行共识
 //        server.broadcast("请求达成共识");
         String userName = (String) session.getAttribute("loginUser");
 //        String hostName=WebUtils.getHostName();
-        Transaction transaction = new Transaction(content,userName);
+        Transaction transaction = new Transaction(content, userName);
         try {
-            if (content.matches(".*(中汽数据).*")){
-                if (getConnecttedNodeCount()>=(getLeastNodeCount()*2)/3.0){
-                    if (transaction.verify()){
+            if (content.matches(".*(中汽数据).*")) {
+                if (getConnecttedNodeCount() >= (getLeastNodeCount() * 2) / 3.0) {
+                    if (transaction.verify()) {
                         ObjectMapper objectMapper = new ObjectMapper();
                         String transactionString = objectMapper.writeValueAsString(transaction);
                         //广播交易数据
@@ -173,13 +198,13 @@ public class BlockController {
                         notebook.addNote(transactionString);//本地存一份
 
                         return "添加记录成功";
-                    }else {
+                    } else {
                         return "交易数据校验失败";
                     }
-                }else {
+                } else {
                     return "未达成共识,请先进行同步";
                 }
-            }else {
+            } else {
                 return "内容需包含中汽数据";
             }
         } catch (Exception e) {
@@ -196,8 +221,8 @@ public class BlockController {
 
     //PBFT消息节点最少确认个数计算
     private double getConnecttedNodeCount() {
-        List<Node> list=nodeMapper.getCommitNode();
-        return list.size()+1;//加上自己
+        List<Node> list = nodeMapper.getCommitNode();
+        return list.size() + 1;//加上自己
     }
 
     // 展示记录
@@ -218,42 +243,61 @@ public class BlockController {
 
 
     // 请求同步其他节点的区块链数据
-    @RequestMapping("/syncData")
-    public String syncData() throws URISyntaxException, InterruptedException {
+    @RequestMapping(value = "/syncData", method = RequestMethod.POST)
+    public String syncData() throws URISyntaxException {
 
+        if (clients.size() > 0) {
+            for (MyClient client : clients) {
+                if (client == null) {
+                    continue;
+                }
+                if (!client.isOpen()) {
+                   if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
+                        String name = client.getName();
+                        String[] split = name.split(":");
+                        String url = split[0] + ":" + split[1];
+                        URI uri = new URI("ws://" + url);
+                        MyClient temp = new MyClient(uri, url, nodeMapper);
+                        temp.connect();
+                        map.put(url, temp);
+//                    client.reconnect();
+                    }
+                }
+            }
+        }
 
         List<Node> all = nodeMapper.getOnlineNode();
         String ip = WebUtils.getHostIp();
-        String curUrl=ip+":"+serverport;
-        for (Node node:all){
-            String url=node.getIp()+":"+node.getPort();
-            if (url.equals(curUrl)){
+        String curUrl = ip + ":" + serverport;
+        for (Node node : all) {
+            String url = node.getIp() + ":" + node.getPort();
+            if (url.equals(curUrl)) {
                 continue;
             }
-            if (map.containsKey(url)){
+            if (map.containsKey(url)) {
                 continue;
             }
             URI uri = new URI("ws://" + url);
-            MyClient client = new MyClient(uri,url,nodeMapper);
-            client.connectBlocking();
-//            client.connect();
+            MyClient client = new MyClient(uri, url, nodeMapper);
+//            client.connectBlocking();
+            client.connect();
             clients.add(client);
-            map.put(url,client);
+            map.put(url, client);
         }
-        for (MyClient client : clients) {
-            if (!client.isOpen()) {
-                if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
-                    client.connect();
-                } else if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
-                    client.reconnect();
-                }
-            }
-            client.send("同步数据");
-            /*if (client!=null&&client.isOpen()){
+
+        for (String key : map.keySet()) {
+            MyClient client = map.get(key);
+            if (client != null && client.isOpen()) {
                 client.send("同步数据");
-            }*/
+            }
         }
-        return "同步失败";
+        /*for (MyClient client : clients) {
+            if (client != null && client.isOpen()) {
+                client.send("同步数据");
+            }
+        }*/
+
+        return "同步";
     }
 
 }

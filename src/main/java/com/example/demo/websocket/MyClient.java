@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
@@ -28,7 +29,6 @@ import java.util.List;
 //客户端
 public class MyClient extends WebSocketClient {
     private final static Logger logger= LoggerFactory.getLogger(MyClient.class);
-
 
     private NodeMapper nodeMapper;
 
