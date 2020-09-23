@@ -14,20 +14,18 @@ import java.util.Date;
 
 public class Transaction {
 
-    // 付款方公钥
-    public String senderPublicKey;
-    // 收款方公钥
-    //public String receiverPublicKey;
-    // 内容
-    public String content;
-    // 数字签名
-    public String signaturedData;
 
-    //密文
-//    public String encode;
+    public String senderPublicKey;// 付款方公钥
+
+    //public String receiverPublicKey;// 收款方公钥
+
+    public String content;  //内容
+
+    public String signaturedData;//数字签名
 
 
-    public long timeStamp;
+//    public String encode;//密文
+
 
     public String userName;//登录的用户名
 
@@ -75,19 +73,12 @@ public class Transaction {
             this.senderPublicKey=strPublicKey;
 //        this.encode=SM2.getHexString(sm2.encrypt(content,publicKey));
             this.signaturedData=sm2.sign(content, "Heartbeats", new SM2KeyPair(publicKey, privateKey)).toString();
-            this.timeStamp=new Date().getTime();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public long getTimeStamp() {
-        return timeStamp;
-    }
-
-    public void setTimeStamp(long timeStamp) {
-        this.timeStamp = timeStamp;
-    }
 
     public String getUserName() {
         return userName;
@@ -128,7 +119,6 @@ public class Transaction {
                 "senderPublicKey='" + senderPublicKey + '\'' +
                 ", content='" + content + '\'' +
                 ", signaturedData='" + signaturedData + '\'' +
-                ", timeStamp=" + timeStamp +
                 ", userName='" + userName + '\'' +
                 '}';
     }

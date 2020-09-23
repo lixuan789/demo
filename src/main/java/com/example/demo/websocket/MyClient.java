@@ -103,7 +103,7 @@ public class MyClient extends WebSocketClient {
                 List<Block> list = notebook.getList();
                 ArrayList<String> contens = new ArrayList<>();
                 for (Block block: list){
-                    contens.add(block.content);
+                    contens.add(block.transaction.content);
                 }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){
@@ -128,7 +128,7 @@ public class MyClient extends WebSocketClient {
                 List<Block> list = notebook.getList();
                 ArrayList<String> contens = new ArrayList<>();
                 for (Block block: list){
-                    contens.add(block.content);
+                    contens.add(block.transaction.content);
                 }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){

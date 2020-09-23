@@ -19,7 +19,7 @@ public class LoginController {
             //登录成功！将用户信息放入session
             session.setAttribute("loginUser",username);
             //登录成功！防止表单重复提交，我们重定向
-            return "redirect:/index.html";
+            return "redirect:/BlockChain.html";
         }else {
             //登录失败！存放错误信息
             model.addAttribute("msg","用户名密码错误");

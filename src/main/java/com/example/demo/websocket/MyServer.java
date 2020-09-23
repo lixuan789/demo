@@ -118,7 +118,7 @@ public class MyServer extends WebSocketServer {
                 List<Block> list = notebook.getList();
                 ArrayList<String> contens = new ArrayList<>();
                 for (Block block: list){
-                    contens.add(block.content);
+                    contens.add(block.transaction.content);
                 }
                 MerkleTree tree = new MerkleTree(contens);
                 if (!voteInfo.getHash().equals(tree.getRoot().getHash())){

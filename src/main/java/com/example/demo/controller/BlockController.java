@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.alibaba.fastjson.JSON;
 import com.example.demo.DemoApplication;
 import com.example.demo.bean.*;
 import com.example.demo.crypto.SM2;
@@ -8,6 +9,7 @@ import com.example.demo.ui.Web;
 import com.example.demo.utils.WebUtils;
 import com.example.demo.websocket.MyClient;
 import com.example.demo.websocket.MyServer;
+import com.example.result.R;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
@@ -19,9 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
 import javax.annotation.PostConstruct;
@@ -37,6 +37,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
+@CrossOrigin
 public class BlockController {
     private final static Logger logger = LoggerFactory.getLogger(BlockController.class);
 
@@ -110,34 +111,36 @@ public class BlockController {
 
     @RequestMapping(value = "/", method = RequestMethod.GET)
     public ModelAndView index(ModelAndView model) {
-        model.setViewName("index.html");
+        model.setViewName("BlockChain.html");
         return model;
     }
 
 
     // 添加封面
     @RequestMapping(value = "/addGenesis", method = RequestMethod.POST)
-    public String addGenesis(String genesis) {
+    public R addGenesis(@RequestBody String content) {
+        Map map = JSON.parseObject(content, Map.class);
+        String value = (String) map.get("content");
+        System.out.println(value);
         try {
-            notebook.addGenesis(genesis);
-            return "添加封面成功";
+            notebook.addGenesis(value);
+            return R.ok().message("添加封面成功");
         } catch (Exception e) {
-            return "添加封面失败:" + e.getMessage();
+            return R.error().message("添加封面失败");
         }
     }
 
     // 添加记录
     @RequestMapping(value = "/addNote", method = RequestMethod.POST)
-    public String addNote(String content, HttpSession session) throws URISyntaxException {
+    public R addNote(@RequestBody String content, HttpSession session) throws URISyntaxException {
+        Map obj = JSON.parseObject(content, Map.class);
+        String value = (String) obj.get("content");
         if (clients.size() > 0) {
             for (MyClient client : clients) {
                 if (client == null) {
                     continue;
                 }
                 if (!client.isOpen()) {
-                    /*if (client.getReadyState().equals(WebSocket.READYSTATE.NOT_YET_CONNECTED)) {
-                        client.connect();
-                    } else */
                     if (client.getReadyState().equals(WebSocket.READYSTATE.CLOSING) || client.getReadyState().equals(WebSocket.READYSTATE.CLOSED)) {
                         String name = client.getName();
                         String[] split = name.split(":");
@@ -175,40 +178,30 @@ public class BlockController {
                 client.send("共识");
             }
         }
-        /*for (MyClient client : clients) {
-            if (client != null && client.isOpen()) {
-                client.send("共识");
-            }
-        }*/
-        //先进行共识
-//        server.broadcast("请求达成共识");
         String userName = (String) session.getAttribute("loginUser");
-//        String hostName=WebUtils.getHostName();
-        Transaction transaction = new Transaction(content, userName);
+        Transaction transaction = new Transaction(value, userName);
         try {
-            if (content.matches(".*(中汽数据).*")) {
+            if (value.matches(".*(中汽数据).*")) {
                 if (getConnecttedNodeCount() >= (getLeastNodeCount() * 2) / 3.0) {
                     if (transaction.verify()) {
-                        ObjectMapper objectMapper = new ObjectMapper();
-                        String transactionString = objectMapper.writeValueAsString(transaction);
+                        String transactionString = JSON.toJSONString(transaction);
                         //广播交易数据
                         MessageBean messageBean = new MessageBean(2, transactionString);
-                        String msg = objectMapper.writeValueAsString(messageBean);
+                        String msg =JSON.toJSONString(messageBean);
                         server.broadcast(msg);//广播交易数据
                         notebook.addNote(transactionString);//本地存一份
-
-                        return "添加记录成功";
+                        return R.ok().message("添加记录成功").data("transaction",transactionString);
                     } else {
-                        return "交易数据校验失败";
+                        return R.error().message("交易数据校验失败");
                     }
                 } else {
-                    return "未达成共识,请先进行同步";
+                    return R.error().message("未达成共识,请先进行同步");
                 }
             } else {
-                return "内容需包含中汽数据";
+                return R.error().message("内容需要包含中汽数据");
             }
         } catch (Exception e) {
-            return "添加记录失败:" + e.getMessage();
+            return R.error().message("添加记录失败");
         }
     }
 
@@ -227,24 +220,25 @@ public class BlockController {
 
     // 展示记录
     @RequestMapping(value = "/showlist", method = RequestMethod.GET)
-    public List<Block> showlist() {
-        return notebook.showlist();
+    public R showlist() {
+        notebook.init();
+        return R.ok().data("list",notebook.getList());
     }
 
     // 校验数据
     @RequestMapping(value = "/check", method = RequestMethod.GET)
-    public String check() {
+    public R check() {
         String check = notebook.check();
         if (StringUtils.isEmpty(check)) {
-            return "数据是安全的";
+            return R.ok().message("数据是安全的");
         }
-        return check;
+        return R.error().message(check);
     }
 
 
     // 请求同步其他节点的区块链数据
     @RequestMapping(value = "/syncData", method = RequestMethod.POST)
-    public String syncData() throws URISyntaxException {
+    public R syncData() throws URISyntaxException {
 
         if (clients.size() > 0) {
             for (MyClient client : clients) {
@@ -291,13 +285,8 @@ public class BlockController {
                 client.send("同步数据");
             }
         }
-        /*for (MyClient client : clients) {
-            if (client != null && client.isOpen()) {
-                client.send("同步数据");
-            }
-        }*/
 
-        return "同步";
+        return R.ok().message("同步");
     }
 
 }

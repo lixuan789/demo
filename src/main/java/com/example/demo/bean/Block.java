@@ -13,22 +13,24 @@ public class Block implements Serializable {
     private static final long serialVersionUID=1L;
 
     public int id;              //区块索引号（区块高度）
-    public String content;      //内容
+
     public String hash;         //区块的哈希
-//    public int nonce;           // 工作量证明
+
     public String preHash;      //上一个区块的hash
 
     public String timeStamp;      //时间戳
 
     public String rootHash;       //merkleTree根节点的哈希
 
+    public Transaction transaction;  //交易内容
+
     public String getRootHash() {
         List<Block> list = Notebook.getInstance().getList();
         ArrayList<String> contens = new ArrayList<>();
         for (Block block:list){
-            contens.add(block.content);
+            contens.add(block.transaction.content);
         }
-        contens.add(this.content);
+        contens.add(this.transaction.content);
         return new MerkleTree(contens).getRoot().getHash();
     }
 
@@ -36,9 +38,9 @@ public class Block implements Serializable {
     public Block() {
     }
 
-    public Block(int id, String content, String hash, String preHash) {
+    public Block(int id, Transaction transaction, String hash, String preHash) {
         this.id = id;
-        this.content = content;
+        this.transaction = transaction;
         this.hash = hash;
         this.preHash = preHash;
         this.timeStamp=getTime();

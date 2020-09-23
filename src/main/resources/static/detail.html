@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
+    <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+    <script src="js/vue.js" type="text/javascript" charset=""UTF-8></script>
+    <script src="js/vue-router.js" type="text/javascript" charset=""UTF-8></script>
+    <script src="js/axios.min.js" type="text/javascript" charset="UTF-8"></script>
+    <script src="js/jquery-1.12.4.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/bootstrap.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/pb.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/jsrsasign-all-min.js" type="text/javascript" charset="utf-8"></script>
+    <style>
+
+        body {
+            margin: 30px;
+        }
+
+        #idInput {
+            width: 100px;
+        }
+
+        #result {
+            padding: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="app">
+
+    <table class="table table-bordered table-light">
+        <thead>
+            <tr>
+                <th scope="col">公钥</th>
+                <th scope="col">数字签名</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="t in item">
+                <td :title="t.senderPublicKey">
+                    <div style=width:100px;white-space:nowrap;text-overflow-ellipsis:ellipsis;overflow:hidden>
+                        {{t.senderPublicKey.slice(0,10)+"..."}}
+                    </div>
+                </td>
+                <td :title="t.signaturedData">
+                    <div style=width:100px;white-space:nowrap;text-overflow-ellipsis:ellipsis;overflow:hidden>
+                        {{t.signaturedData.slice(0,10)+"..."}}
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+
+    new Vue({
+        el:"#app",
+        data:{
+            index:[]
+        },
+        created(){
+            this.getParams()
+        },
+        methods: {
+            getParams() {
+                // 取到路由带过来的参数
+                // 将数据放在当前组件的数据内
+                this.index = this.$route.params.data;
+                console.log(this.index)
+            }
+        },
+        watch:{
+            '$route': 'getParams'
+        }
+    })
+
+
+</script>
+</body>
+
+
+</html>

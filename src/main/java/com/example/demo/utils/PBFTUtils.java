@@ -25,7 +25,7 @@ public class PBFTUtils {
 
         ArrayList<String> contens = new ArrayList<>();
         for (Block block: list){
-            contens.add(block.content);
+            contens.add(block.transaction.content);
         }
 //        List<String> contens = Notebook.getContens();
         vi.setList(contens);

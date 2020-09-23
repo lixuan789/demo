@@ -53,10 +53,10 @@ public class Notebook {
         return instance;
     }
 
-    private void init() {
+    public void init() {
         try {
             File file = new File("a.json");
-            if (!file.exists()){//如果文件不存在就创建一个
+            if (!file.exists()) {//如果文件不存在就创建一个
                 file.createNewFile();
             }
             // 如果文件存在,读取文件的内容并赋值给list
@@ -84,9 +84,8 @@ public class Notebook {
         // 添加数据
         list.add(new Block(
                 list.size() + 1,//ID
-                genesis,//内容
-//                SHACoder.encodeSHA256Hex(nonce+genesis+preHash),
-                HashUtils.sha256( genesis + preHash),// Hash，使用SHA256算法
+                new Transaction(genesis,"创世区块"),//内容
+                HashUtils.sha256(genesis + preHash),// Hash，使用SHA256算法
                 preHash
         ));
 
@@ -98,7 +97,6 @@ public class Notebook {
     private static int mine(String content) {
 
         for (int i = 0; i < Integer.MAX_VALUE; i++) {
-//            String hash=SHACoder.encodeSHA256Hex(i+content);
             String hash = HashUtils.sha256(i + content);
             if (hash.startsWith("0000")) {//设定满足条件为，hash值前4位都是0
                 return i;
@@ -110,8 +108,9 @@ public class Notebook {
 
     // 添加交易记录,普通区块
     // 至少已经有了封面
-    public void addNote(String note) {
+    public void addNote(String transactionString) {
 
+        Transaction transaction = JSON.parseObject(transactionString, Transaction.class);
         if (list.size() < 1) {
             throw new RuntimeException("添加记录的时候,必须是有封面的");
         }
@@ -122,26 +121,26 @@ public class Notebook {
         // 添加数据
         list.add(new Block(
                 list.size() + 1,//ID
-                note,//内容
-                HashUtils.sha256( note + preHash),// Hash
+                transaction,//内容
+                HashUtils.sha256(transactionString + preHash),// Hash
                 preHash
         ));
 
         //去掉因为广播而产生的重复数据
         ArrayList<Block> temp = new ArrayList<>();
-        for (int i=0;i<list.size();i++){
-            if (i==0){
+        for (int i = 0; i < list.size(); i++) {
+            if (i == 0) {
                 temp.add(list.get(i));
                 continue;
             }
             Block pre = list.get(i - 1);
             Block cur = list.get(i);
-            if (!cur.preHash.equals(pre.hash)){
+            if (!cur.preHash.equals(pre.hash)) {
                 continue;
             }
             temp.add(cur);
         }
-        list=temp;
+        list = temp;
         // 保存到本地
         save2Disk();
     }
@@ -160,7 +159,7 @@ public class Notebook {
             /*ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.writeValue(new File("a.json"), list);*/
             String s = JSON.toJSONString(list);
-            FileUtils.writeStringToFile(new File("a.json"),s,"utf-8");
+            FileUtils.writeStringToFile(new File("a.json"), s, "utf-8");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -178,20 +177,20 @@ public class Notebook {
 
             Block block = list.get(i);
             String hash = block.hash;
-            String content = block.content;
+            String content = block.transaction.content;
             int id = block.id;
             String preHash = block.preHash;
 
             if (i == 0) {
 //                String caculatedHash = SHACoder.encodeSHA256Hex(nonce + content + preHash);
-                String caculatedHash = HashUtils.sha256( content + preHash);
+                String caculatedHash = HashUtils.sha256(content + preHash);
                 if (!caculatedHash.equals(hash)) {
                     sb.append("编号为" + block.id + "的hash有问题,请注意检查<br>");
                 }
             } else {
                 // 校验hash,还要校验prehash
 //                String caculatedHash = SHACoder.encodeSHA256Hex(nonce + content + preHash);
-                String caculatedHash = HashUtils.sha256( content + preHash);
+                String caculatedHash = HashUtils.sha256(content + preHash);
                 if (!caculatedHash.equals(hash)) {
                     sb.append("编号为" + block.id + "的hash有问题,请注意检查<br>");
                 }
@@ -224,16 +223,21 @@ public class Notebook {
         // 比较长度, 校验
         try {
             File file = new File("a.json");
-            if (!file.exists()){//如果文件不存在就创建一个
+            if (!file.exists()) {//如果文件不存在就创建一个
                 file.createNewFile();
             }
 
             if (newList.size() > list.size()) {
                 System.out.println("其他节点的长度大，需要更新！");
+                List<Block> temp = list;
                 list = newList;
-                save2Disk();
+                if (check().length() == 0) {//其他节点长度大并且校验成功
+                    save2Disk();
+                } else {
+                    list = temp;
+                }
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

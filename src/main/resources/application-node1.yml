@@ -8,5 +8,3 @@ spring:
 mybatis:
   mapper-locations: classpath:mapper/*mapper.xml
   type-aliases-package: com.example.demo.bean
-
-

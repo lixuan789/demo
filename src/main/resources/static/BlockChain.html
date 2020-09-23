@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title>区块链浏览器</title>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.css"/>
+    <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+    <script src="js/vue.js" type="text/javascript" charset="" UTF-8></script>
+    <script src="js/vue-router.js"></script>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="css/index.css">
+    <!-- 引入组件库 -->
+    <script src="js/index.js"></script>
+
+    <script src="js/popper.js"></script>
+
+
+    <script src="js/axios.min.js" type="text/javascript" charset="UTF-8"></script>
+    <script src="js/jquery-1.12.4.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/bootstrap.bundle.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/pb.js" type="text/javascript" charset="utf-8"></script>
+    <script src="js/jsrsasign-all-min.js" type="text/javascript" charset="utf-8"></script>
+    <style>
+
+        body {
+            margin: 30px;
+        }
+
+        #idInput {
+            width: 100px;
+        }
+
+        #result {
+            padding: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="app">
+<!--    <nav class="navbar navbar-light bg-light">-->
+<!--        <a class="navbar-brand">区块链浏览器</a>-->
+<!--        <div class="form-inline">-->
+<!--            <input style="width: 400px" v-model="content" class="form-control mr-sm-2" type="search"-->
+<!--                   placeholder="请输入区块hash、发布人或区块高度" aria-label="Search">-->
+<!--            <button class="btn btn-outline-success my-2 my-sm-0" type="button" @click="search()">搜索</button>-->
+<!--        </div>-->
+<!--    </nav>-->
+<!--    输入框-->
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="inputGroup-sizing-default">请输入内容:</span>
+        </div>
+        <input id="idInput" type="text" v-model="content" class="form-control" aria-label="Sizing example input"
+               aria-describedby="inputGroup-sizing-default">
+    </div>
+    <!--按钮组-->
+    <div style="margin-bottom: 15px">
+        <button type="button" class="btn btn-outline-primary" @click="addGenesis()">添加封面</button>
+        <button type="button" class="btn btn-outline-secondary" @click="addNote()">添加记录</button>
+        <button type="button" class="btn btn-outline-success" @click="check()">校验数据</button>
+        <button type="button" class="btn btn-outline-info" @click="syncData()">同步</button>
+    </div>
+
+    <!--用于展示结果-->
+    <p class="bg-info" id="result">
+        {{message}}
+    </p>
+
+    <div>
+        <table class="table table-bordered table-light">
+            <thead>
+            <tr>
+                <th scope="col">区块高度</th>
+                <th scope="col">发布人</th>
+                <th scope="col">内容</th>
+                <th scope="col">上一个hash</th>
+                <th scope="col">哈希值</th>
+                <th scope="col">MerkleTree根节点Hash</th>
+                <th scope="col">时间</th>
+                <th scope="col">操作</th>
+
+            </tr>
+            </thead>
+            <tbody id="tbody">
+            <tr>
+                <div class="collapse" id="collapseExample">
+                    <div class="card card-body">
+                        <ul class="list-group" v-for="block in item">
+                            <li class="list-group-item list-group-item-secondary">区块高度: {{block.id}}</li>
+                            <li class="list-group-item list-group-item-secondary">发布人: {{block.transaction.userName}}</li>
+                            <li class="list-group-item list-group-item-secondary">内容: {{block.transaction.content}}</li>
+                            <li class="list-group-item list-group-item-secondary">上一个区块的hash值: {{block.preHash}}</li>
+                            <li class="list-group-item list-group-item-secondary">本区块的hash值: {{block.hash}}</li>
+                            <li class="list-group-item list-group-item-secondary">MerkleTree根节点的hash值: {{block.rootHash}}</li>
+                            <li class="list-group-item list-group-item-secondary">发布时间: {{block.timeStamp}}</li>
+                        </ul>
+                    </div>
+                </div>
+            </tr>
+            <tr v-for="(block,index) in page">
+                <th>{{block.id}}</th>
+                <td v-if="block.transaction&&block.transaction.userName">{{block.transaction.userName}}</td>
+                <td v-else>未知</td>
+                <td style="width: 600px" v-if="block.transaction&&block.transaction.content">{{block.transaction.content}}</td>
+                <td v-else>无</td>
+                <td :title="block.preHash">
+                    <div style=width:100px;white-space:nowrap;text-overflow-ellipsis:ellipsis;overflow:hidden>
+                        {{block.preHash.slice(0,10)+"..."}}
+                    </div>
+                </td>
+                <td :title="block.hash">
+                    <div style=width:100px;white-space:nowrap;text-overflow-ellipsis:ellipsis;overflow:hidden>
+                        {{block.hash.slice(0,10)+"..."}}
+                    </div>
+                </td>
+                <td :title="block.rootHash">
+                    <div style=width:100px;white-space:nowrap;text-overflow-ellipsis:ellipsis;overflow:hidden>
+                        {{block.rootHash.slice(0,10)+"..."}}
+                    </div>
+                </td>
+                <td>{{block.timeStamp}}</td>
+                <td>
+                    <button id="btn"  class="btn btn-sm btn-outline-success"  type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" @click="detail(block.id,)">
+                        详情
+                    </button>
+                </td>
+            </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+        <div style="position:fixed;bottom:0">
+            <nav aria-label="Page navigation example">
+                <ul class="pagination">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-info dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            每页/{{pageSize}}条
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="#" @click="changePageSize(10)">10条</a>
+                            <a class="dropdown-item" href="#" @click="changePageSize(15)">15条</a>
+                            <a class="dropdown-item" href="#" @click="changePageSize(20)">20条</a>
+                            <div class="dropdown-divider"></div>
+                        </div>
+                    </div>
+
+                    <li class="page-item">
+                        <a class="page-link" href="#" aria-label="Previous" @click="prev">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item active" v-for="n in 5" v-if="n==currentPage"><a class="page-link" href="#" @click="chagePage(n)">{{n}}</a></li>
+                    <li class="page-item" v-else><a class="page-link" href="#" @click="chagePage(n)">{{n}}</a></li>
+                    <li class="page-item" v-if="totalPage>5"><a class="page-link" href="#">...</a></li>
+                    <li class="page-item" v-if="totalPage>5"><a class="page-link" href="#" @click="chagePage(totalPage)">{{totalPage}}</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" aria-label="Next" @click="next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <input type="text" style="width: 40px" class="form-control" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-sm" v-model="currentPage">
+                </ul>
+            </nav>
+        </div>
+
+</div>
+
+
+
+</body>
+
+<script>
+
+    new Vue({
+        el: "#app",
+        data: {
+            content: "",
+            message: "",
+            list: [],
+            item: [],
+            pageSize: 10,
+            currentPage: 1,
+            totalPage:0,
+            total:0
+        },
+        created() {
+            this.showlist()
+        },
+        computed: {
+            page() {
+                let res = [];
+                let start = (this.currentPage - 1) * this.pageSize;
+                let end = start + this.pageSize;
+                for (var i = start; i < end && i < this.list.length; i++) {
+                    res.push(this.list[i]);
+                }
+                this.total=this.list.length
+                this.totalPage=this.total%this.pageSize==0?this.total/this.pageSize:Math.trunc(this.total/this.pageSize)+1
+
+                console.log(this.total)
+                console.log(this.totalPage)
+                return res;
+            }
+        },
+        methods: {
+            addGenesis() {
+                loading.baosight.showPageLoadingMsg(false) // 显示进度条
+                axios.post("/addGenesis", {
+                    content: this.content
+                }).then(response => {
+                    console.log(response)
+                    this.showlist()
+                    this.message = response.data.message
+                    loading.baosight.hidePageLoadingMsg()
+                    // this.list=response.data.data.list
+                }).catch(error => {
+                    this.message = error.data.message
+                    console.log(error)
+                });
+            },
+            addNote() {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.post("/addNote", {
+                    content: this.content
+                }).then(response => {
+                    console.log(response)
+                    this.message = response.data.message
+                    this.showlist()
+                    loading.baosight.hidePageLoadingMsg()
+                    // this.list=response.data.data.list
+                }).catch(error => {
+                    this.message = error.data.message
+                    console.log(error)
+                });
+            },
+            showlist() {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.get("/showlist").then(response => {
+                    console.log(response)
+                    loading.baosight.hidePageLoadingMsg()
+                    this.list = response.data.data.list
+                }).catch(error => {
+                    console.log(error)
+                });
+            },
+            check() {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.get("/check").then(response => {
+                    console.log(response)
+                    loading.baosight.hidePageLoadingMsg()
+                    this.message = response.data.message
+                    // this.list=response.data.data.list
+                }).catch(error => {
+                    this.message = error.data.message
+                    console.log(error)
+                });
+            },
+            syncData() {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.post("/syncData").then(response => {
+                    console.log(response)
+                    this.message = response.data.message
+                    this.showlist();
+                    loading.baosight.hidePageLoadingMsg()
+                    // this.list=response.data.data.list
+                }).catch(error => {
+                    console.log(error)
+                })
+            },
+            search() {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.post("/search", {
+                    content: this.content
+                }).then(response => {
+                    console.log(response)
+                    this.message = response.data.message
+                    this.list = response.data.data.list
+                    loading.baosight.hidePageLoadingMsg()
+                }).catch(error => {
+                    console.log(error)
+                })
+            },
+            detail(i) {
+                loading.baosight.showPageLoadingMsg(false)
+                axios.get("/detail", {
+                    params: {
+                        id: i
+                    }
+                }).then(response => {
+                    console.log(response)
+                    this.item = response.data.data.item
+                    this.message = response.data.message
+                    loading.baosight.hidePageLoadingMsg()
+                }).catch(error => {
+                    console.log(error)
+                })
+
+            },
+            chagePage(i){
+                this.currentPage=i;
+            },
+            prev(){
+                this.currentPage--;
+                if (this.currentPage<1){
+                    this.currentPage=1
+                }
+            },
+            next(){
+                this.currentPage++;
+                if (this.currentPage>this.totalPage){
+                    this.currentPage=this.totalPage
+                }
+            },
+            changePageSize(i){
+                this.pageSize=i
+                this.currentPage=1
+            }
+
+        }
+    })
+
+
+</script>
+
+
+</html>

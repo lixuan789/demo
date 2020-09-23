@@ -24,9 +24,8 @@ public class viewDemo extends Application {
 
         Scene scene=new Scene(root);
         primaryStage.setScene(scene);
-            primaryStage.setTitle("ADC_Baas区块链应用");
+            primaryStage.setTitle("汽车链应用");
         primaryStage.show();
-
 
         web.prefHeightProperty().bind(root.heightProperty());
         web.prefWidthProperty().bind(root.widthProperty());
